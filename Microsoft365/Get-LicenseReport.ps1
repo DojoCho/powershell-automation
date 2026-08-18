@@ -28,7 +28,7 @@ if (-not (Get-Module -ListAvailable -Name $RequiredModule)) {
 if (-not (Get-MgContext)) {
     Write-Host "Connecting to Microsoft Graph..." -ForegroundColor Cyan
 
-    Connect-MgGraph -Scopes "LicenseAssignment.Read.All" -NoWelcome
+    Connect-MgGraph -Scopes "Organization.Read.All" -NoWelcome
 }
 
 Write-Host "Retrieving Microsoft 365 license information..." -ForegroundColor Cyan
