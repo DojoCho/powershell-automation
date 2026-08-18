@@ -1,0 +1,8 @@
+# Generated reports
+*.csv
+
+# PowerShell logs
+*.log
+
+# Temporary files
+*.tmp
