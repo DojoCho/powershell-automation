@@ -1,0 +1,90 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    name: PSScriptAnalyzer
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+
+      - name: Check that every script parses
+        shell: pwsh
+        run: |
+          $failed = $false
+
+          Get-ChildItem -Path . -Filter *.ps1 -Recurse | ForEach-Object {
+              $errors = $null
+              [void][System.Management.Automation.Language.Parser]::ParseFile(
+                  $_.FullName, [ref]$null, [ref]$errors)
+
+              if ($errors) {
+                  $failed = $true
+                  Write-Host "::error file=$($_.FullName)::$($errors[0].Message)"
+              }
+          }
+
+          if ($failed) { exit 1 }
+          Write-Host "All scripts parsed successfully."
+
+      - name: Check that every script has comment-based help
+        shell: pwsh
+        run: |
+          $missing = Get-ChildItem -Path . -Filter *.ps1 -Recurse |
+              Where-Object { (Get-Content $_.FullName -Raw) -notmatch '\.SYNOPSIS' }
+
+          if ($missing) {
+              $missing | ForEach-Object {
+                  Write-Host "::error file=$($_.FullName)::Missing comment-based help"
+              }
+              exit 1
+          }
+
+          Write-Host "All scripts have comment-based help."
+
+      - name: Check that every script name uses an approved verb
+        shell: pwsh
+        run: |
+          $approved = (Get-Verb).Verb
+          $bad = @()
+
+          Get-ChildItem -Path . -Filter *.ps1 -Recurse | ForEach-Object {
+              $verb = ($_.BaseName -split '-')[0]
+
+              if ($_.BaseName -notmatch '-' -or $approved -notcontains $verb) {
+                  $bad += $_.Name
+                  Write-Host "::error file=$($_.FullName)::'$verb' is not an approved PowerShell verb"
+              }
+          }
+
+          if ($bad.Count -gt 0) { exit 1 }
+          Write-Host "All script names use approved verbs."
+
+      - name: Run PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          $results = Invoke-ScriptAnalyzer -Path . -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
+
+          if ($results) {
+              $results | ForEach-Object {
+                  Write-Host "::error file=$($_.ScriptPath),line=$($_.Line)::$($_.RuleName): $($_.Message)"
+              }
+              $results | Format-Table -AutoSize
+              exit 1
+          }
+
+          Write-Host "PSScriptAnalyzer reported no issues."

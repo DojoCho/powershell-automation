@@ -1,5 +1,10 @@
 # PowerShell Automation
 
+[![Lint](https://github.com/DojoCho/powershell-automation/actions/workflows/lint.yml/badge.svg)](https://github.com/DojoCho/powershell-automation/actions/workflows/lint.yml)
+[![PowerShell](https://img.shields.io/badge/PowerShell-5.1%20%7C%207%2B-5391FE?logo=powershell&logoColor=white)](https://learn.microsoft.com/powershell/)
+[![Platform](https://img.shields.io/badge/platform-Windows-0078D6?logo=windows&logoColor=white)](https://learn.microsoft.com/windows/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](LICENSE)
+
 A practical collection of PowerShell scripts for Windows administration, Microsoft 365, Microsoft Intune, Active Directory and everyday IT automation.
 
 Built around real-world endpoint management and IT support workflows, with an emphasis on repeatable administration, reporting, inventory and troubleshooting.
@@ -29,10 +34,106 @@ Scripts that change system state support `-WhatIf`, so you can always preview fi
 
 ---
 
+## 📤 Example Output
+
+Values below are illustrative, but the formatting is exactly what the scripts produce.
+
+**`Windows/New-SystemHealthReport.ps1`**
+
+```text
+===== SYSTEM HEALTH REPORT =====
+Generated: 2026-08-19 09:14:02
+
+-- System --
+Computer   : WORKSTATION-014
+Model      : Dell Inc. Latitude 5540
+OS         : Microsoft Windows 11 Enterprise (build 26100)
+CPU        : 13th Gen Intel(R) Core(TM) i7-1365U
+Uptime     : 6d 3h 22m
+Last boot  : 08/13/2026 05:52:11
+
+-- Memory --
+Total : 31.72 GB
+Used  : 18.44 GB (58.1%)
+Free  : 13.28 GB
+
+-- Disks --
+
+Drive Label   TotalGB FreeGB FreePercent Status
+----- -----   ------- ------ ----------- ------
+C:    OS       475.35  62.18        13.1 LOW
+D:    Data     931.51 402.77        43.2 OK
+
+-- Summary --
+Disks below 15% free: C:
+```
+
+**`Windows/Get-InstalledSoftware.ps1`**
+
+Reads all three uninstall registry locations, so 32-bit and per-user installations
+are included rather than silently dropped.
+
+```text
+DisplayName                     DisplayVersion Publisher              Scope
+-----------                     -------------- ---------              -----
+7-Zip 23.01                     23.01          Igor Pavlov            Machine (32-bit)
+Google Chrome                   127.0.6533.100 Google LLC             Machine (64-bit)
+Microsoft 365 Apps for business 16.0.17830     Microsoft Corporation  Machine (64-bit)
+Microsoft Teams                 24165.1414     Microsoft Corporation  User
+Notepad++ (64-bit x64)          8.6.9          Notepad++ Team         Machine (64-bit)
+```
+
+**`Utilities/New-RandomPassword.ps1`**
+
+```text
+PS> .\New-RandomPassword.ps1 -Length 20 -Count 3
+
+f_acFT=su(B+Sk3cD#Ex
+WCS^co7$RXeGL4wq9{tm
+j9Rwmpqp&Zn#s5vTX2gd
+```
+
+**`Utilities/Test-NetworkConnection.ps1`**
+
+```text
+Target        Reachable AverageTimeMs Status
+------        --------- ------------- ------
+dc01          True                  2 Success
+google.com    True                 11 Success
+fileserver01  False                   Testing connection to computer 'fileserver01' failed
+```
+
+**`Utilities/Remove-OldFiles.ps1`** — destructive scripts preview with `-WhatIf`
+
+```text
+PS> .\Remove-OldFiles.ps1 -Path "D:\Logs" -Days 30 -WhatIf
+
+Scanning for files older than 30 days...
+Path   : D:\Logs
+Cutoff : 2026-07-20 09:14
+
+Files matched : 148
+Space to free : 512.4 MB
+
+What if: Performing the operation "Remove file" on target "D:\Logs\app-2026-06-02.log".
+What if: Performing the operation "Remove file" on target "D:\Logs\app-2026-06-03.log".
+...
+
+Cleanup finished.
+Files removed : 0
+Failed        : 0
+```
+
+---
+
 ## 📂 Repository Structure
 
 ```text
 powershell-automation/
+│
+├── .github/
+│   └── workflows/
+│       └── lint.yml
 │
 ├── ActiveDirectory/
 │   ├── Export-ADComputers.ps1
@@ -76,6 +177,7 @@ powershell-automation/
 │
 ├── .gitignore
 ├── LICENSE
+├── PSScriptAnalyzerSettings.psd1
 └── README.md
 ```
 
@@ -164,6 +266,16 @@ Scripts across this repository follow a consistent set of rules:
 - **Honest output.** Summaries report what actually happened, including items that were skipped or failed.
 - **Reports next to the script.** CSV output is written to `$PSScriptRoot` and excluded from Git.
 - **5.1 and 7+.** Scripts avoid cmdlets and .NET APIs that exist in only one of the two.
+
+These are enforced in CI, not just documented. Every push runs
+[the Lint workflow](.github/workflows/lint.yml), which fails the build if any script
+does not parse, is missing comment-based help, uses an unapproved verb, or trips
+PSScriptAnalyzer.
+
+`PSAvoidUsingWriteHost` is the one rule excluded, with the reasoning recorded in
+[`PSScriptAnalyzerSettings.psd1`](PSScriptAnalyzerSettings.psd1): these are interactive
+administration scripts whose status output is meant for an operator at a console, while
+data intended for callers is returned as objects or written to CSV.
 
 ---
 
